@@ -94,37 +94,17 @@ std::string convertAddress(const char address[], char newVersionByte){
     return result;
 }
 
-std::map<std::string,int64_t> getGenesisBalances(){
-	std::map<std::string,int64_t> genesisBalances;
-	//Uniqredit v 1.0 Balances
-	ifstream myfile ((GetDataDir() / "ratings/genesisbalances.dat").string().c_str());
-	char * pEnd;
-	std::string line;
-	if (myfile.is_open()){
-		LogPrintf(" Opened Genesis balances file  \n");
-		while ( myfile.good() ){
-			getline (myfile,line);
-			std::vector<std::string> strs;
-			boost::split(strs, line, boost::is_any_of(","));
-			genesisBalances[strs[0]]=strtoll(strs[1].c_str(),&pEnd,10);
-		}
-		myfile.close();
-	}
-	LogPrintf(" Genesis balances file parsed  \n");
-	return genesisBalances;
-}
-
 std::map<std::string,double> getdonors(){
 	std::map<std::string,double> donors;
 	//Uniqredit BlockShare Donors
 	donors["UPCSFhF2KziU13pVjWgLiwfWLbdGRFDHas"]=0.0045;
 	donors["UQWrzQu7qZHXPxKzFSPWjdJ4k2Tsqa2FW5"]=0.0227;
-	donors["URxhymXZy6dmg31KcNPCMGfybXtw8SpQTF"]=0.03;
+	donors["URxhymXZy6dmg31KcNPCMGfybXtw8SpQTF"]=0.0317;
 	donors["USPJAMYnpeLKNqAxugzKBCu3zj53zdYtcp"]=0.0478;
 	donors["UT9gvcVfCTUDpm4zvzHwc1CGuLt6yfehjM"]=0.0045;
 	donors["UUtFA56Wz4UDaL67quFLKgYiozYTGf18QT"]=0.0045;
 	donors["UN7t5ToEwsJixTVyzVwDNURY7bYQJi2Wqm"]=0.0227;
-	donors["Ua4aHMb1Mav5cigegwWvQ3n4rpk3KAF6h4"]=0.02;
+	donors["Ua4aHMb1Mav5cigegwWvQ3n4rpk3KAF6h4"]=0.0228;
 	donors["UgyFnjrYr1Rocpqt5TRbdqk7j4xajcYHZe"]=0.0004;
 	donors["UkAVRPjPWmAk7Wru63Vkajx1nQcSrUbJGx"]=0.8384;		
 
@@ -200,65 +180,29 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     nLastBlockSize = nBlockSize;
     LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
 
-	std::map<std::string,int64_t> genesisBalances = getGenesisBalances();
-	std::map<std::string,int64_t>::iterator ballit;
 	std::map<std::string,double> donors = getdonors();
 	std::map<std::string,double>::iterator dallit;
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
-
-    if(chainActive.Tip()->nHeight==1){
-		coinbaseTx.vout.resize(genesisBalances.size()+donors.size()+2);
-	}
-	else {
-		coinbaseTx.vout.resize(donors.size()+2);
-	}
-
+	coinbaseTx.vout.resize(donors.size()+2);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[1].scriptPubKey = DEV_SCRIPT;
-
+	coinbaseTx.vout[0].nValue = 0.001 * COIN + nFees;
+	coinbaseTx.vout[1].nValue = 0.99900003 * COIN;
+	
     int i=2;
+    unsigned long int py = 4 * COIN;
 	for(dallit = donors.begin(); dallit != donors.end();dallit++){
 		CUniqreditAddress address(dallit->first.c_str());
 		CTxDestination dest = address.Get();
 		coinbaseTx.vout[i].scriptPubKey= GetScriptForDestination(dest);
-		i++;
-	}
-
-    if(chainActive.Tip()->nHeight==1){
-		for( ballit = genesisBalances.begin(); ballit != genesisBalances.end();++ballit){
-			CUniqreditAddress address(ballit->first.c_str());
-			CTxDestination dest = address.Get();
-			coinbaseTx.vout[i].scriptPubKey= GetScriptForDestination(dest);
-			i++;
-		}
-	}
-
-	coinbaseTx.vout[0].nValue = 0.001 * COIN + nFees;
-    if(chainActive.Tip()->nHeight==690){	
-	coinbaseTx.vout[1].nValue = 3200000 * COIN;
-	}
-	else{
-		coinbaseTx.vout[1].nValue = 0.99900004 * COIN;
-	}
-    unsigned long int py = 4 * COIN;
-	int j=2;
-	for(dallit = donors.begin(); dallit != donors.end();dallit++){
 		unsigned long int bb =(dallit->second)* py;
-		coinbaseTx.vout[j].nValue = bb;
-		j++;
-	}
-
-	if(chainActive.Tip()->nHeight==1){
-		for( ballit = genesisBalances.begin(); ballit != genesisBalances.end();++ballit){
-			CAmount pay = (ballit->second/10);
-			coinbaseTx.vout[j].nValue = pay;
-			j++;
-		}
-	}
-
+		coinbaseTx.vout[i].nValue = bb;
+		i++;
+	}	
+    
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = coinbaseTx;
     pblocktemplate->vTxFees[0] = -nFees;
