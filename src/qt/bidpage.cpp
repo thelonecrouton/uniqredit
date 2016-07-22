@@ -142,15 +142,25 @@ void BidPage::RPC()
 
     // check uniqredit-cli and uniqredit-conf exist in cwd
     QString cli = "uniqredit-cli";
+    QString cliwin = "uniqredit-cli.exe";
     QString clipath = pathAppend(cwd, cli);
+    QString clipathwin = pathAppend(cwd, cliwin);
     QString conf = "uniqredit.conf";
     QString confpath = pathAppend(cwd, conf);
 
-   if (!fileExists(clipath) || !fileExists(confpath))
-    {
-        QMessageBox::information(0, QString("Attention!"), QString("Please make sure that uniqredit-cli(.exe) exists in the same directory as the currently loaded wallet.\n\nYou must also have a uniqredit.conf file present, containing the following:\n\nrpcuser=blah\nrpcpassword=blahblah\nrpcallowip=127.0.0.1\nserver=1\n\nOnce these are in place, please restart uniqredit-qt to proceed."), QMessageBox::Ok);
-        return; 
-    }
+    #ifdef __linux
+        if (!fileExists(clipath) || !fileExists(confpath))
+        {
+            QMessageBox::information(0, QString("Attention!"), QString("Please make sure that uniqredit-cli(.exe) exists in the same directory as the currently loaded wallet.\n\nYou must also have a uniqredit.conf file present, containing the following:\n\nrpcuser=blah\nrpcpassword=blahblah\nrpcallowip=127.0.0.1\nserver=1\n\nOnce these are in place, please restart uniqredit-qt to proceed."), QMessageBox::Ok);
+            return; 
+        }
+    #elif _WIN32
+        if (!fileExists(clipathwin) || !fileExists(confpath))
+        {
+            QMessageBox::information(0, QString("Attention!"), QString("Please make sure that uniqredit-cli(.exe) exists in the same directory as the currently loaded wallet.\n\nYou must also have a uniqredit.conf file present, containing the following:\n\nrpcuser=blah\nrpcpassword=blahblah\nrpcallowip=127.0.0.1\nserver=1\n\nOnce these are in place, please restart uniqredit-qt to proceed."), QMessageBox::Ok);
+            return; 
+        }       
+    #endif
 
     // get password
     QString pwd = ui->lineEditPassphrase->text();
